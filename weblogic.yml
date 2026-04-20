@@ -1,9 +1,5 @@
-<<<<<<< Updated upstream
 - name: Install WebLogic Server
   hosts: weblogic_servers
-=======
-- hosts: weblogic_servers
->>>>>>> Stashed changes
   become: yes
 
   vars:
