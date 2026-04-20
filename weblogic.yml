@@ -1,4 +1,4 @@
-- hosts: weblogic
+- hosts: weblogic_servers
   become: yes
   roles:
     - weblogic
