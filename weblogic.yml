@@ -1,4 +1,9 @@
-- hosts: weblogic_servers
+- name: Install WebLogic Server
+  hosts: weblogic_servers
   become: yes
+
+  vars:
+    ansible_python_interpreter: /usr/bin/python3
+
   roles:
     - weblogic
