@@ -1,5 +1,5 @@
 - name: Install WebLogic Server
-  hosts: weblogic_servers
+  hosts: WebLogicServers
   become: yes
 
   vars:
