@@ -1,0 +1,23 @@
+2026-04-20 22:32:07,731 p=377800 u=ec2-user n=ansible | [WARNING]: Could not match supplied host pattern, ignoring: weblogic_servers
+
+2026-04-20 22:32:07,732 p=377800 u=ec2-user n=ansible | playbook: weblogic.yml
+2026-04-20 22:38:40,172 p=378020 u=ec2-user n=ansible | playbook: weblogic.yml
+2026-04-20 22:40:43,748 p=378376 u=ec2-user n=ansible | @all:
+  |--@ungrouped:
+  |--@weblogic_servers:
+  |  |--13.222.180.58
+  |  |--54.235.41.220
+2026-04-20 22:41:10,898 p=378398 u=ec2-user n=ansible | 54.235.41.220 | SUCCESS => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/libexec/platform-python"
+    },
+    "changed": false,
+    "ping": "pong"
+}
+2026-04-20 22:41:10,899 p=378398 u=ec2-user n=ansible | 13.222.180.58 | SUCCESS => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/libexec/platform-python"
+    },
+    "changed": false,
+    "ping": "pong"
+}
