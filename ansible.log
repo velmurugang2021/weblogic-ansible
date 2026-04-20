@@ -21,3 +21,74 @@
     "changed": false,
     "ping": "pong"
 }
+2026-04-20 23:03:38,495 p=380097 u=ec2-user n=ansible | playbook: weblogic.yml
+2026-04-20 23:04:49,189 p=380136 u=ec2-user n=ansible | PLAY [Install WebLogic Server] ******************************************************************************************************************
+2026-04-20 23:04:49,196 p=380136 u=ec2-user n=ansible | TASK [Gathering Facts] **************************************************************************************************************************
+2026-04-20 23:04:50,581 p=380136 u=ec2-user n=ansible | ok: [54.235.41.220]
+2026-04-20 23:04:50,643 p=380136 u=ec2-user n=ansible | ok: [13.222.180.58]
+2026-04-20 23:04:50,658 p=380136 u=ec2-user n=ansible | TASK [weblogic : Create oracle group] ***********************************************************************************************************
+2026-04-20 23:04:51,226 p=380136 u=ec2-user n=ansible | ok: [13.222.180.58]
+2026-04-20 23:04:51,278 p=380136 u=ec2-user n=ansible | changed: [54.235.41.220]
+2026-04-20 23:04:51,282 p=380136 u=ec2-user n=ansible | TASK [weblogic : Create oracle user] ************************************************************************************************************
+2026-04-20 23:04:51,917 p=380136 u=ec2-user n=ansible | ok: [13.222.180.58]
+2026-04-20 23:04:51,949 p=380136 u=ec2-user n=ansible | changed: [54.235.41.220]
+2026-04-20 23:04:51,953 p=380136 u=ec2-user n=ansible | TASK [weblogic : Create directories] ************************************************************************************************************
+2026-04-20 23:04:52,486 p=380136 u=ec2-user n=ansible | changed: [54.235.41.220] => (item=/opt/java)
+2026-04-20 23:04:52,504 p=380136 u=ec2-user n=ansible | ok: [13.222.180.58] => (item=/opt/java)
+2026-04-20 23:04:52,905 p=380136 u=ec2-user n=ansible | changed: [54.235.41.220] => (item=/opt/oracle/middleware)
+2026-04-20 23:04:52,950 p=380136 u=ec2-user n=ansible | ok: [13.222.180.58] => (item=/opt/oracle/middleware)
+2026-04-20 23:04:53,327 p=380136 u=ec2-user n=ansible | changed: [54.235.41.220] => (item=/opt/software)
+2026-04-20 23:04:53,378 p=380136 u=ec2-user n=ansible | ok: [13.222.180.58] => (item=/opt/software)
+2026-04-20 23:04:53,383 p=380136 u=ec2-user n=ansible | TASK [weblogic : Install required packages] *****************************************************************************************************
+2026-04-20 23:05:00,428 p=380136 u=ec2-user n=ansible | ok: [13.222.180.58]
+2026-04-20 23:05:02,893 p=380136 u=ec2-user n=ansible | changed: [54.235.41.220]
+2026-04-20 23:05:02,899 p=380136 u=ec2-user n=ansible | TASK [weblogic : Copy JDK (assumes tar.gz already uploaded)] ************************************************************************************
+2026-04-20 23:05:04,182 p=380136 u=ec2-user n=ansible | fatal: [54.235.41.220]: FAILED! => changed=false 
+  msg: Source '/opt/software/jdk-11.tar.gz' does not exist
+2026-04-20 23:05:05,230 p=380136 u=ec2-user n=ansible | fatal: [13.222.180.58]: FAILED! => changed=false 
+  msg: Source '/opt/software/jdk-11.tar.gz' does not exist
+2026-04-20 23:05:05,232 p=380136 u=ec2-user n=ansible | PLAY RECAP **************************************************************************************************************************************
+2026-04-20 23:05:05,232 p=380136 u=ec2-user n=ansible | 13.222.180.58              : ok=5    changed=0    unreachable=0    failed=1    skipped=0    rescued=0    ignored=0   
+2026-04-20 23:05:05,232 p=380136 u=ec2-user n=ansible | 54.235.41.220              : ok=5    changed=4    unreachable=0    failed=1    skipped=0    rescued=0    ignored=0   
+2026-04-20 23:18:09,011 p=381028 u=ec2-user n=ansible | 54.235.41.220 | SUCCESS => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/libexec/platform-python"
+    },
+    "changed": false,
+    "ping": "pong"
+}
+2026-04-20 23:18:09,015 p=381028 u=ec2-user n=ansible | 13.222.180.58 | SUCCESS => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/libexec/platform-python"
+    },
+    "changed": false,
+    "ping": "pong"
+}
+2026-04-20 23:37:58,644 p=381975 u=ec2-user n=ansible | PLAY [Install WebLogic Server] ******************************************************************************************************************
+2026-04-20 23:37:58,652 p=381975 u=ec2-user n=ansible | TASK [Gathering Facts] **************************************************************************************************************************
+2026-04-20 23:37:59,991 p=381975 u=ec2-user n=ansible | ok: [54.235.41.220]
+2026-04-20 23:38:00,035 p=381975 u=ec2-user n=ansible | ok: [13.222.180.58]
+2026-04-20 23:38:00,055 p=381975 u=ec2-user n=ansible | TASK [weblogic : Create oracle group] ***********************************************************************************************************
+2026-04-20 23:38:00,638 p=381975 u=ec2-user n=ansible | ok: [54.235.41.220]
+2026-04-20 23:38:00,644 p=381975 u=ec2-user n=ansible | ok: [13.222.180.58]
+2026-04-20 23:38:00,649 p=381975 u=ec2-user n=ansible | TASK [weblogic : Create oracle user] ************************************************************************************************************
+2026-04-20 23:38:01,306 p=381975 u=ec2-user n=ansible | ok: [54.235.41.220]
+2026-04-20 23:38:01,665 p=381975 u=ec2-user n=ansible | ok: [13.222.180.58]
+2026-04-20 23:38:01,670 p=381975 u=ec2-user n=ansible | TASK [weblogic : Create directories] ************************************************************************************************************
+2026-04-20 23:38:02,506 p=381975 u=ec2-user n=ansible | ok: [54.235.41.220] => (item=/opt/java)
+2026-04-20 23:38:02,804 p=381975 u=ec2-user n=ansible | ok: [13.222.180.58] => (item=/opt/java)
+2026-04-20 23:38:02,934 p=381975 u=ec2-user n=ansible | ok: [54.235.41.220] => (item=/opt/oracle/middleware)
+2026-04-20 23:38:03,355 p=381975 u=ec2-user n=ansible | ok: [54.235.41.220] => (item=/opt/software)
+2026-04-20 23:38:03,921 p=381975 u=ec2-user n=ansible | ok: [13.222.180.58] => (item=/opt/oracle/middleware)
+2026-04-20 23:38:04,522 p=381975 u=ec2-user n=ansible | ok: [13.222.180.58] => (item=/opt/software)
+2026-04-20 23:38:04,528 p=381975 u=ec2-user n=ansible | TASK [weblogic : Install required packages] *****************************************************************************************************
+2026-04-20 23:38:10,891 p=381975 u=ec2-user n=ansible | ok: [54.235.41.220]
+2026-04-20 23:38:11,098 p=381975 u=ec2-user n=ansible | ok: [13.222.180.58]
+2026-04-20 23:38:11,103 p=381975 u=ec2-user n=ansible | TASK [weblogic : Copy JDK (assumes tar.gz already uploaded)] ************************************************************************************
+2026-04-20 23:38:12,245 p=381975 u=ec2-user n=ansible | fatal: [54.235.41.220]: FAILED! => changed=false 
+  msg: Source '/opt/software/jdk-11.tar.gz' does not exist
+2026-04-20 23:38:12,269 p=381975 u=ec2-user n=ansible | fatal: [13.222.180.58]: FAILED! => changed=false 
+  msg: Source '/opt/software/jdk-11.tar.gz' does not exist
+2026-04-20 23:38:12,270 p=381975 u=ec2-user n=ansible | PLAY RECAP **************************************************************************************************************************************
+2026-04-20 23:38:12,270 p=381975 u=ec2-user n=ansible | 13.222.180.58              : ok=5    changed=0    unreachable=0    failed=1    skipped=0    rescued=0    ignored=0   
+2026-04-20 23:38:12,270 p=381975 u=ec2-user n=ansible | 54.235.41.220              : ok=5    changed=0    unreachable=0    failed=1    skipped=0    rescued=0    ignored=0   
