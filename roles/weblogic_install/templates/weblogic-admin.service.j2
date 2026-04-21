@@ -1,0 +1,18 @@
+[Unit]
+Description=Oracle WebLogic AdminServer
+After=network.target
+
+[Service]
+Type=simple
+User={{ oracle_user }}
+Group={{ oracle_group }}
+Environment=JAVA_HOME={{ java_home }}
+Environment=MW_HOME={{ oracle_home }}
+Environment=DOMAIN_HOME={{ wls_domain_home }}/{{ wls_domain_name }}
+ExecStart={{ wls_domain_home }}/{{ wls_domain_name }}/bin/startWebLogic.sh
+ExecStop={{ wls_domain_home }}/{{ wls_domain_name }}/bin/stopWebLogic.sh
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target
