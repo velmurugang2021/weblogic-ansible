@@ -1,10 +1,4 @@
 ---
-- name: Update all RHEL8 packages
-  dnf:
-    name: "*"
-    state: latest
-    update_cache: true
-
 - name: Install required OS packages
   dnf:
     name:
@@ -15,19 +9,16 @@
       - libgcc
       - libstdc++
       - libstdc++-devel
-      - libXi
-      - libXtst
       - make
       - sysstat
       - unzip
       - wget
       - curl
-      - zip
       - tar
-      - net-tools
-      - hostname
       - openssl
+      - net-tools
     state: present
+    update_cache: true
 
 - name: Create Oracle OS group
   group:
@@ -61,69 +52,135 @@
     state: present
     reload: true
   loop:
-    - { name: "kernel.sem",              value: "250 32000 100 128" }
-    - { name: "net.core.rmem_default",   value: "262144" }
-    - { name: "net.core.rmem_max",       value: "4194304" }
-    - { name: "net.core.wmem_default",   value: "262144" }
-    - { name: "net.core.wmem_max",       value: "1048586" }
-    - { name: "fs.file-max",             value: "6815744" }
-    - { name: "net.ipv4.ip_local_port_range", value: "9000 65500" }
+    - { name: "fs.file-max",                   value: "6815744" }
+    - { name: "net.core.rmem_max",              value: "4194304" }
+    - { name: "net.core.wmem_max",              value: "1048576" }
+    - { name: "net.ipv4.ip_local_port_range",   value: "9000 65500" }
 
-- name: Configure OS limits for Oracle user
-  pam_limits:
-    domain: "{{ oracle_user }}"
-    limit_type: "{{ item.type }}"
-    limit_item: "{{ item.item }}"
-    value: "{{ item.value }}"
-  loop:
-    - { type: soft, item: nofile,  value: "131072" }
-    - { type: hard, item: nofile,  value: "131072" }
-    - { type: soft, item: nproc,   value: "131072" }
-    - { type: hard, item: nproc,   value: "131072" }
-    - { type: soft, item: stack,   value: "10240" }
-    - { type: hard, item: memlock, value: "134217728" }
-    - { type: soft, item: memlock, value: "134217728" }
+# -------------------------------------------------------
+# FIX: Use lineinfile instead of pam_limits module
+# Writes directly to /etc/security/limits.conf — no
+# collection dependency, works in all AAP environments
+# -------------------------------------------------------
+- name: Ensure /etc/security/limits.conf exists
+  file:
+    path: /etc/security/limits.conf
+    state: touch
+    mode: "0644"
+  changed_when: false
 
-- name: Disable SELinux (set permissive)
+- name: Set OS limits for oracle user (nofile soft)
+  lineinfile:
+    path: /etc/security/limits.conf
+    regexp: '^oracle\s+soft\s+nofile'
+    line: "oracle    soft    nofile    131072"
+    state: present
+
+- name: Set OS limits for oracle user (nofile hard)
+  lineinfile:
+    path: /etc/security/limits.conf
+    regexp: '^oracle\s+hard\s+nofile'
+    line: "oracle    hard    nofile    131072"
+    state: present
+
+- name: Set OS limits for oracle user (nproc soft)
+  lineinfile:
+    path: /etc/security/limits.conf
+    regexp: '^oracle\s+soft\s+nproc'
+    line: "oracle    soft    nproc     131072"
+    state: present
+
+- name: Set OS limits for oracle user (nproc hard)
+  lineinfile:
+    path: /etc/security/limits.conf
+    regexp: '^oracle\s+hard\s+nproc'
+    line: "oracle    hard    nproc     131072"
+    state: present
+
+- name: Set OS limits for oracle user (stack soft)
+  lineinfile:
+    path: /etc/security/limits.conf
+    regexp: '^oracle\s+soft\s+stack'
+    line: "oracle    soft    stack     10240"
+    state: present
+
+- name: Set OS limits for oracle user (memlock hard)
+  lineinfile:
+    path: /etc/security/limits.conf
+    regexp: '^oracle\s+hard\s+memlock'
+    line: "oracle    hard    memlock   134217728"
+    state: present
+
+- name: Set OS limits for oracle user (memlock soft)
+  lineinfile:
+    path: /etc/security/limits.conf
+    regexp: '^oracle\s+soft\s+memlock'
+    line: "oracle    soft    memlock   134217728"
+    state: present
+
+- name: Enable pam_limits in /etc/pam.d/login
+  lineinfile:
+    path: /etc/pam.d/login
+    regexp: 'pam_limits.so'
+    line: "session    required     pam_limits.so"
+    state: present
+
+- name: Enable pam_limits in /etc/pam.d/sshd
+  lineinfile:
+    path: /etc/pam.d/sshd
+    regexp: 'pam_limits.so'
+    line: "session    required     pam_limits.so"
+    state: present
+
+- name: Verify limits are set correctly
+  shell: grep oracle /etc/security/limits.conf
+  register: limits_check
+  changed_when: false
+
+- name: Show limits applied
+  debug:
+    var: limits_check.stdout_lines
+
+- name: Set SELinux to permissive
   selinux:
     state: permissive
     policy: targeted
+  ignore_errors: true
 
-- name: Stop and disable firewalld (use Security Groups instead)
+- name: Stop and disable firewalld
   service:
     name: firewalld
     state: stopped
     enabled: false
   ignore_errors: true
 
-- name: Create swap file if needed
-  block:
-    - name: Check if swap exists
-      shell: swapon --show | wc -l
-      register: swap_check
-      changed_when: false
+- name: Check if swap already exists
+  shell: swapon --show | wc -l
+  register: swap_lines
+  changed_when: false
 
-    - name: Create swap file
-      command: dd if=/dev/zero of=/swapfile bs=1M count={{ swap_size_mb }}
-      when: swap_check.stdout | int == 0
+- name: Create swap file (4GB)
+  command: dd if=/dev/zero of=/swapfile bs=1M count=4096
+  when: swap_lines.stdout | int == 0
 
-    - name: Set swap permissions
-      file:
-        path: /swapfile
-        mode: "0600"
-      when: swap_check.stdout | int == 0
+- name: Set swap file permissions
+  file:
+    path: /swapfile
+    mode: "0600"
+  when: swap_lines.stdout | int == 0
 
-    - name: Format swap
-      command: mkswap /swapfile
-      when: swap_check.stdout | int == 0
+- name: Format swap file
+  command: mkswap /swapfile
+  when: swap_lines.stdout | int == 0
 
-    - name: Enable swap
-      command: swapon /swapfile
-      when: swap_check.stdout | int == 0
+- name: Enable swap
+  command: swapon /swapfile
+  when: swap_lines.stdout | int == 0
 
-    - name: Persist swap in fstab
-      lineinfile:
-        path: /etc/fstab
-        line: "/swapfile swap swap defaults 0 0"
-        state: present
-      when: swap_check.stdout | int == 0
+- name: Persist swap in fstab
+  lineinfile:
+    path: /etc/fstab
+    line: "/swapfile swap swap defaults 0 0"
+    regexp: '/swapfile'
+    state: present
+  when: swap_lines.stdout | int == 0
