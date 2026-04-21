@@ -1,34 +1,36 @@
 ---
-# === Java Settings ===
-java_version: "jdk-17"
-java_rpm_url: "https://download.oracle.com/java/17/latest/jdk-17_linux-x64_bin.rpm"
-java_home: "/usr/java/jdk-17"
-jdk_package: "jdk-17_linux-x64_bin.rpm"
+# Java — path auto-detected after install
+java_home: "/usr/lib/jvm/java-17-openjdk"
+jdk_package: "java-17-openjdk-devel"
 
-# === WebLogic Settings ===
-wls_version: "15.1.1"
-wls_installer: "fmw_15.1.1.0.0_wls_generic.jar"
+# WebLogic Installer
+wls_installer: "fmw_14.1.2.0.0_wls.jar"
 wls_installer_path: "/tmp/weblogic"
-oracle_home: "/u01/app/oracle/product/15.1.1/wlserver"
+
+# Oracle Paths
 oracle_base: "/u01/app/oracle"
+oracle_home: "/u01/app/oracle/product/14.1.2/wlserver"
 oracle_inventory: "/u01/app/oraInventory"
+
+# Domain
 wls_domain_name: "base_domain"
 wls_domain_home: "/u01/app/oracle/user_projects/domains"
+wls_admin_port: 7001
 
-# === OS User ===
+# OS User
 oracle_user: "oracle"
 oracle_group: "oinstall"
 oracle_uid: 1200
 oracle_gid: 1200
 
-# === WebLogic Admin ===
+# Admin credentials (from vault)
 wls_admin_user: "weblogic"
 wls_admin_password: "{{ vault_wls_admin_password }}"
-wls_admin_port: 7001
-wls_admin_ssl_port: 7002
 
-# === System ===
-swap_size_mb: 4096
+# Python interpreter
+ansible_python_interpreter: /usr/bin/python3
+
+# Directories to create
 oracle_dirs:
   - "{{ oracle_base }}"
   - "{{ oracle_home }}"
