@@ -1,59 +1,60 @@
 ---
 - name: Check if Java is already installed
   stat:
-    path: "{{ java_home }}/bin/java"
-  register: java_binary
+    path: /usr/bin/java
+  register: java_bin
 
-- name: Install Java 17
-  package:
-    name: java-17-openjdk
-    state: present
-  when: not java_binary.stat.exists
-
-- name: Install JDK via RPM
+- name: Install OpenJDK 17 from RHEL repos (no download needed)
   dnf:
-    name: "/tmp/{{ jdk_package }}"
+    name: java-17-openjdk-devel
     state: present
-    disable_gpg_check: true
-  when: not java_binary.stat.exists
+  when: not java_bin.stat.exists
+  register: jdk_install
 
-- name: Set JAVA_HOME system-wide
-  lineinfile:
-    path: /etc/environment
-    line: "JAVA_HOME={{ java_home }}"
-    state: present
+- name: Show JDK install result
+  debug:
+    var: jdk_install
+  when: not java_bin.stat.exists
 
-- name: Configure Java alternatives
-  alternatives:
-    name: java
-    link: /usr/bin/java
-    path: "{{ java_home }}/bin/java"
+- name: Find JAVA_HOME path
+  shell: |
+    dirname $(dirname $(readlink -f $(which java)))
+  register: java_home_found
+  changed_when: false
 
-- name: Set Oracle user .bash_profile
-  blockinfile:
-    path: "/home/{{ oracle_user }}/.bash_profile"
-    owner: "{{ oracle_user }}"
-    group: "{{ oracle_group }}"
-    create: true
-    block: |
-      # Java Environment
-      export JAVA_HOME={{ java_home }}
-      export PATH=$JAVA_HOME/bin:$PATH
+- name: Show detected JAVA_HOME
+  debug:
+    msg: "Detected JAVA_HOME: {{ java_home_found.stdout }}"
 
-      # Oracle/WebLogic Environment
-      export ORACLE_BASE={{ oracle_base }}
-      export MW_HOME={{ oracle_home }}
-      export WLS_HOME={{ oracle_home }}/wlserver
-      export DOMAIN_HOME={{ wls_domain_home }}/{{ wls_domain_name }}
+- name: Set JAVA_HOME fact from detected path
+  set_fact:
+    java_home: "{{ java_home_found.stdout }}"
 
-      # Heap settings
-      export USER_MEM_ARGS="-Xms512m -Xmx1024m"
+- name: Update group_vars java_home to detected path
+  set_fact:
+    java_home: "{{ java_home_found.stdout }}"
 
-- name: Verify Java installation
-  command: "{{ java_home }}/bin/java -version"
+- name: Verify Java version
+  command: java -version
   register: java_ver
   changed_when: false
 
 - name: Show Java version
   debug:
     msg: "{{ java_ver.stderr }}"
+
+- name: Set oracle user .bash_profile
+  blockinfile:
+    path: "/home/{{ oracle_user }}/.bash_profile"
+    create: true
+    owner: "{{ oracle_user }}"
+    group: "{{ oracle_group }}"
+    marker: "# {mark} ANSIBLE MANAGED - JAVA/WLS ENV"
+    block: |
+      export JAVA_HOME={{ java_home_found.stdout }}
+      export PATH=$JAVA_HOME/bin:$PATH
+      export ORACLE_BASE={{ oracle_base }}
+      export MW_HOME={{ oracle_home }}
+      export WLS_HOME=$MW_HOME/wlserver
+      export DOMAIN_HOME={{ wls_domain_home }}/{{ wls_domain_name }}
+      export USER_MEM_ARGS="-Xms512m -Xmx1024m"
