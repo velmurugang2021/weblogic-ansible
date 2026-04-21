@@ -1,52 +1,94 @@
 ---
 # ============================================================
-# CHECK — Skip install if already done
+# CHECK — Skip if already installed
 # ============================================================
 - name: Check if WebLogic is already installed
   stat:
     path: "{{ oracle_home }}/wlserver"
   register: wls_home_check
 
-# ============================================================
-# DOWNLOAD — Get installer from S3
-# ============================================================
 - name: Check if installer already on disk
   stat:
     path: "{{ wls_installer_path }}/{{ wls_installer }}"
   register: installer_on_disk
-  when: not wls_home_check.stat.exists
 
-- name: Install AWS CLI if not present
-  dnf:
-    name: awscli
-    state: present
+# ============================================================
+# AWS CLI v2 — Install via curl (not dnf)
+# ============================================================
+- name: Check if AWS CLI is already installed
+  shell: aws --version 2>&1
+  register: awscli_check
+  changed_when: false
+  failed_when: false
+
+- name: Download AWS CLI v2 installer
+  shell: |
+    curl -sL "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" \
+      -o /tmp/awscliv2.zip
   when:
     - not wls_home_check.stat.exists
-    - not installer_on_disk.stat.exists | default(true)
+    - not installer_on_disk.stat.exists
+    - awscli_check.rc != 0
 
+- name: Unzip AWS CLI installer
+  shell: unzip -q /tmp/awscliv2.zip -d /tmp/awscli-install
+  when:
+    - not wls_home_check.stat.exists
+    - not installer_on_disk.stat.exists
+    - awscli_check.rc != 0
+
+- name: Install AWS CLI v2
+  shell: /tmp/awscli-install/aws/install
+  when:
+    - not wls_home_check.stat.exists
+    - not installer_on_disk.stat.exists
+    - awscli_check.rc != 0
+
+- name: Verify AWS CLI installed
+  shell: /usr/local/bin/aws --version
+  register: aws_ver
+  changed_when: false
+  when:
+    - not wls_home_check.stat.exists
+    - not installer_on_disk.stat.exists
+
+- name: Show AWS CLI version
+  debug:
+    msg: "{{ aws_ver.stdout | default('AWS CLI already installed') }}"
+  when:
+    - not wls_home_check.stat.exists
+    - not installer_on_disk.stat.exists
+
+# ============================================================
+# DOWNLOAD — WebLogic JAR from S3
+# ============================================================
 - name: Download WebLogic JAR from S3
   shell: |
-    aws s3 cp s3://weblogic379063509598/fmw_14.1.2.0.0_wls.jar \
+    /usr/local/bin/aws s3 cp \
+      s3://weblogic379063509598/fmw_14.1.2.0.0_wls.jar \
       {{ wls_installer_path }}/{{ wls_installer }} \
       --no-progress
   register: s3_download
   when:
     - not wls_home_check.stat.exists
-    - not (installer_on_disk.stat.exists | default(false))
+    - not installer_on_disk.stat.exists
   timeout: 600
 
-- name: Verify installer was downloaded
+- name: Verify installer downloaded successfully
   stat:
     path: "{{ wls_installer_path }}/{{ wls_installer }}"
   register: jar_check
-  when: not wls_home_check.stat.exists
+
+- name: Fail if installer not present
+  fail:
+    msg: >
+      WebLogic JAR not found at {{ wls_installer_path }}/{{ wls_installer }}.
+      Check S3 bucket name, key, and IAM role on EC2 instance.
+  when: not jar_check.stat.exists
 
 - name: Show installer file size
   debug:
     msg: "Installer size: {{ (jar_check.stat.size / 1024 / 1024) | round(1) }} MB"
-  when:
-    - not wls_home_check.stat.exists
-    - jar_check.stat.exists
 
 - name: Set correct ownership on installer
   file:
@@ -54,7 +96,6 @@
     owner: "{{ oracle_user }}"
     group: "{{ oracle_group }}"
     mode: "0755"
-  when: not wls_home_check.stat.exists
 
 # ============================================================
 # CONFIGURE — oraInst.loc and response file
@@ -77,7 +118,7 @@
   when: not wls_home_check.stat.exists
 
 # ============================================================
-# INSTALL — Run WebLogic silent installer
+# INSTALL — Silent install
 # ============================================================
 - name: Run WebLogic silent installation (10-20 mins)
   become_user: "{{ oracle_user }}"
@@ -99,12 +140,12 @@
     - not wls_home_check.stat.exists
     - wls_install_result is defined
 
-- name: Verify WebLogic wlserver directory exists
+- name: Verify wlserver directory created
   stat:
     path: "{{ oracle_home }}/wlserver"
   register: wls_verify
 
-- name: Fail if WebLogic install did not complete
+- name: Fail if WebLogic not installed correctly
   fail:
     msg: "WebLogic install failed — {{ oracle_home }}/wlserver not found"
   when: not wls_verify.stat.exists
@@ -143,7 +184,7 @@
     - domain_result is defined
 
 # ============================================================
-# SERVICE — Register as systemd service
+# SERVICE — systemd
 # ============================================================
 - name: Deploy WebLogic systemd service
   template:
@@ -151,27 +192,27 @@
     dest: /etc/systemd/system/weblogic-admin.service
     mode: "0644"
 
-- name: Reload systemd daemon
-  systemd:
-    daemon_reload: true
-
-- name: Start and enable WebLogic AdminServer
+- name: Reload systemd and start WebLogic
   systemd:
     name: weblogic-admin
     state: started
     enabled: true
+    daemon_reload: true
 
-- name: Wait for AdminServer to come up on port {{ wls_admin_port }}
+- name: Wait for AdminServer port {{ wls_admin_port }}
   wait_for:
     port: "{{ wls_admin_port }}"
     delay: 20
     timeout: 300
-    msg: "AdminServer did not start within 5 minutes"
 
-- name: Clean up installer JAR to save disk space
+- name: Clean up installer files
   file:
-    path: "{{ wls_installer_path }}/{{ wls_installer }}"
+    path: "{{ item }}"
     state: absent
+  loop:
+    - "{{ wls_installer_path }}/{{ wls_installer }}"
+    - /tmp/awscliv2.zip
+    - /tmp/awscli-install
   ignore_errors: true
 
 - name: Print Admin Console URL
