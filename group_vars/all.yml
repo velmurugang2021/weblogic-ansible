@@ -1,9 +1,9 @@
 ---
 # === Java Settings ===
-- name: Install OpenJDK 17
-  yum:
-    name: java-17-openjdk
-    state: present
+java_version: "jdk-17"
+java_rpm_url: "https://download.oracle.com/java/17/latest/jdk-17_linux-x64_bin.rpm"
+java_home: "/usr/java/jdk-17"
+jdk_package: "jdk-17_linux-x64_bin.rpm"
 
 # === WebLogic Settings ===
 wls_version: "15.1.1"
