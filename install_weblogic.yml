@@ -1,0 +1,56 @@
+---
+- name: Install Oracle WebLogic Server on RHEL8
+  hosts: weblogic_servers
+  gather_facts: true
+  become: true
+  vars_files:
+    - group_vars/all.yml
+
+  pre_tasks:
+    - name: Verify OS is RHEL 8
+      assert:
+        that:
+          - ansible_distribution == "RedHat"
+          - ansible_distribution_major_version == "8"
+        fail_msg: "This playbook requires RHEL 8. Found: {{ ansible_distribution }} {{ ansible_distribution_version }}"
+        success_msg: "OS check passed: {{ ansible_distribution }} {{ ansible_distribution_version }}"
+
+    - name: Check available disk space on /u01
+      shell: df -BG /u01 2>/dev/null || df -BG /
+      register: disk_check
+      changed_when: false
+
+    - name: Display disk information
+      debug:
+        var: disk_check.stdout_lines
+
+  roles:
+    - prerequisites
+    - java_install
+    - weblogic_install
+
+  post_tasks:
+    - name: Verify WebLogic installation
+      become_user: "{{ oracle_user }}"
+      shell: |
+        source ~/.bash_profile
+        java -cp {{ oracle_home }}/server/lib/weblogic.jar weblogic.version 2>&1 | head -5
+      register: wls_version_check
+      changed_when: false
+      ignore_errors: true
+
+    - name: Display WebLogic version
+      debug:
+        var: wls_version_check.stdout_lines
+
+    - name: Installation Summary
+      debug:
+        msg:
+          - "======================================"
+          - " WebLogic Installation Complete!"
+          - "======================================"
+          - "Host       : {{ inventory_hostname }}"
+          - "Oracle Home: {{ oracle_home }}"
+          - "Domain Home: {{ wls_domain_home }}/{{ wls_domain_name }}"
+          - "Admin Port : {{ wls_admin_port }}"
+          - "======================================"

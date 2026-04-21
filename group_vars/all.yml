@@ -1,0 +1,37 @@
+---
+# === Java Settings ===
+java_version: "jdk-17"
+java_rpm_url: "https://download.oracle.com/java/17/latest/jdk-17_linux-x64_bin.rpm"
+java_home: "/usr/java/jdk-17"
+jdk_package: "jdk-17_linux-x64_bin.rpm"
+
+# === WebLogic Settings ===
+wls_version: "15.1.1"
+wls_installer: "fmw_15.1.1.0.0_wls_generic.jar"
+wls_installer_path: "/tmp/weblogic"
+oracle_home: "/u01/app/oracle/product/15.1.1/wlserver"
+oracle_base: "/u01/app/oracle"
+oracle_inventory: "/u01/app/oraInventory"
+wls_domain_name: "base_domain"
+wls_domain_home: "/u01/app/oracle/user_projects/domains"
+
+# === OS User ===
+oracle_user: "oracle"
+oracle_group: "oinstall"
+oracle_uid: 1200
+oracle_gid: 1200
+
+# === WebLogic Admin ===
+wls_admin_user: "weblogic"
+wls_admin_password: "{{ vault_wls_admin_password }}"
+wls_admin_port: 7001
+wls_admin_ssl_port: 7002
+
+# === System ===
+swap_size_mb: 4096
+oracle_dirs:
+  - "{{ oracle_base }}"
+  - "{{ oracle_home }}"
+  - "{{ oracle_inventory }}"
+  - "{{ wls_installer_path }}"
+  - "{{ wls_domain_home }}"

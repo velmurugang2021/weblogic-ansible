@@ -1,0 +1,129 @@
+---
+- name: Update all RHEL8 packages
+  dnf:
+    name: "*"
+    state: latest
+    update_cache: true
+
+- name: Install required OS packages
+  dnf:
+    name:
+      - binutils
+      - glibc
+      - glibc-devel
+      - libaio
+      - libgcc
+      - libstdc++
+      - libstdc++-devel
+      - libXi
+      - libXtst
+      - make
+      - sysstat
+      - unzip
+      - wget
+      - curl
+      - zip
+      - tar
+      - net-tools
+      - hostname
+      - openssl
+    state: present
+
+- name: Create Oracle OS group
+  group:
+    name: "{{ oracle_group }}"
+    gid: "{{ oracle_gid }}"
+    state: present
+
+- name: Create Oracle OS user
+  user:
+    name: "{{ oracle_user }}"
+    uid: "{{ oracle_uid }}"
+    group: "{{ oracle_group }}"
+    home: "/home/{{ oracle_user }}"
+    shell: /bin/bash
+    comment: "Oracle WebLogic User"
+    state: present
+
+- name: Create Oracle directory structure
+  file:
+    path: "{{ item }}"
+    state: directory
+    owner: "{{ oracle_user }}"
+    group: "{{ oracle_group }}"
+    mode: "0755"
+  loop: "{{ oracle_dirs }}"
+
+- name: Set kernel parameters for WebLogic
+  sysctl:
+    name: "{{ item.name }}"
+    value: "{{ item.value }}"
+    state: present
+    reload: true
+  loop:
+    - { name: "kernel.sem",              value: "250 32000 100 128" }
+    - { name: "net.core.rmem_default",   value: "262144" }
+    - { name: "net.core.rmem_max",       value: "4194304" }
+    - { name: "net.core.wmem_default",   value: "262144" }
+    - { name: "net.core.wmem_max",       value: "1048586" }
+    - { name: "fs.file-max",             value: "6815744" }
+    - { name: "net.ipv4.ip_local_port_range", value: "9000 65500" }
+
+- name: Configure OS limits for Oracle user
+  pam_limits:
+    domain: "{{ oracle_user }}"
+    limit_type: "{{ item.type }}"
+    limit_item: "{{ item.item }}"
+    value: "{{ item.value }}"
+  loop:
+    - { type: soft, item: nofile,  value: "131072" }
+    - { type: hard, item: nofile,  value: "131072" }
+    - { type: soft, item: nproc,   value: "131072" }
+    - { type: hard, item: nproc,   value: "131072" }
+    - { type: soft, item: stack,   value: "10240" }
+    - { type: hard, item: memlock, value: "134217728" }
+    - { type: soft, item: memlock, value: "134217728" }
+
+- name: Disable SELinux (set permissive)
+  selinux:
+    state: permissive
+    policy: targeted
+
+- name: Stop and disable firewalld (use Security Groups instead)
+  service:
+    name: firewalld
+    state: stopped
+    enabled: false
+  ignore_errors: true
+
+- name: Create swap file if needed
+  block:
+    - name: Check if swap exists
+      shell: swapon --show | wc -l
+      register: swap_check
+      changed_when: false
+
+    - name: Create swap file
+      command: dd if=/dev/zero of=/swapfile bs=1M count={{ swap_size_mb }}
+      when: swap_check.stdout | int == 0
+
+    - name: Set swap permissions
+      file:
+        path: /swapfile
+        mode: "0600"
+      when: swap_check.stdout | int == 0
+
+    - name: Format swap
+      command: mkswap /swapfile
+      when: swap_check.stdout | int == 0
+
+    - name: Enable swap
+      command: swapon /swapfile
+      when: swap_check.stdout | int == 0
+
+    - name: Persist swap in fstab
+      lineinfile:
+        path: /etc/fstab
+        line: "/swapfile swap swap defaults 0 0"
+        state: present
+      when: swap_check.stdout | int == 0

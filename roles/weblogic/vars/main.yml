@@ -1,6 +1,0 @@
-java_home: /opt/java
-middleware_home: /opt/oracle/middleware
-weblogic_home: "{{ middleware_home }}/wlserver"
-installer_path: /opt/software/fmw_15.1.1.0.0_wls_lite_generic.jar
-oracle_user: oracle
-oracle_group: oinstall

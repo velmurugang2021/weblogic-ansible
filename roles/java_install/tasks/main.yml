@@ -1,0 +1,61 @@
+---
+- name: Check if Java is already installed
+  stat:
+    path: "{{ java_home }}/bin/java"
+  register: java_binary
+
+- name: Download JDK RPM from Oracle
+  get_url:
+    url: "{{ java_rpm_url }}"
+    dest: "/tmp/{{ jdk_package }}"
+    mode: "0644"
+    timeout: 120
+  when: not java_binary.stat.exists
+
+- name: Install JDK via RPM
+  dnf:
+    name: "/tmp/{{ jdk_package }}"
+    state: present
+    disable_gpg_check: true
+  when: not java_binary.stat.exists
+
+- name: Set JAVA_HOME system-wide
+  lineinfile:
+    path: /etc/environment
+    line: "JAVA_HOME={{ java_home }}"
+    state: present
+
+- name: Configure Java alternatives
+  alternatives:
+    name: java
+    link: /usr/bin/java
+    path: "{{ java_home }}/bin/java"
+
+- name: Set Oracle user .bash_profile
+  blockinfile:
+    path: "/home/{{ oracle_user }}/.bash_profile"
+    owner: "{{ oracle_user }}"
+    group: "{{ oracle_group }}"
+    create: true
+    block: |
+      # Java Environment
+      export JAVA_HOME={{ java_home }}
+      export PATH=$JAVA_HOME/bin:$PATH
+
+      # Oracle/WebLogic Environment
+      export ORACLE_BASE={{ oracle_base }}
+      export MW_HOME={{ oracle_home }}
+      export WLS_HOME={{ oracle_home }}/wlserver
+      export DOMAIN_HOME={{ wls_domain_home }}/{{ wls_domain_name }}
+
+      # Heap settings
+      export USER_MEM_ARGS="-Xms512m -Xmx1024m"
+
+- name: Verify Java installation
+  command: "{{ java_home }}/bin/java -version"
+  register: java_ver
+  changed_when: false
+
+- name: Show Java version
+  debug:
+    msg: "{{ java_ver.stderr }}"

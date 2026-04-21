@@ -1,0 +1,76 @@
+---
+- name: Check if WebLogic is already installed
+  stat:
+    path: "{{ oracle_home }}/wlserver"
+  register: wls_installed
+
+- name: Copy WebLogic installer to target
+  copy:
+    src: "files/{{ wls_installer }}"
+    dest: "{{ wls_installer_path }}/{{ wls_installer }}"
+    owner: "{{ oracle_user }}"
+    group: "{{ oracle_group }}"
+    mode: "0755"
+  when: not wls_installed.stat.exists
+
+- name: Generate oraInst.loc
+  template:
+    src: oraInst.loc.j2
+    dest: /etc/oraInst.loc
+    owner: "{{ oracle_user }}"
+    group: "{{ oracle_group }}"
+    mode: "0644"
+
+- name: Generate silent install response file
+  template:
+    src: wls_install.rsp.j2
+    dest: "{{ wls_installer_path }}/wls_install.rsp"
+    owner: "{{ oracle_user }}"
+    group: "{{ oracle_group }}"
+    mode: "0644"
+  when: not wls_installed.stat.exists
+
+- name: Run WebLogic silent installation
+  become_user: "{{ oracle_user }}"
+  command: >
+    {{ java_home }}/bin/java -Xmx1024m
+    -jar {{ wls_installer_path }}/{{ wls_installer }}
+    -silent -responseFile {{ wls_installer_path }}/wls_install.rsp
+    -invPtrLoc /etc/oraInst.loc
+  register: wls_install_result
+  when: not wls_installed.stat.exists
+  timeout: 1200
+
+- name: Display installation output
+  debug:
+    var: wls_install_result.stdout_lines
+  when: not wls_installed.stat.exists
+
+- name: Generate WebLogic domain via WLST
+  become_user: "{{ oracle_user }}"
+  script: files/create_domain.py
+  args:
+    executable: "{{ oracle_home }}/oracle_common/common/bin/wlst.sh"
+  register: domain_result
+  ignore_errors: true
+
+- name: Create systemd service for AdminServer
+  template:
+    src: weblogic-admin.service.j2
+    dest: /etc/systemd/system/weblogic-admin.service
+    mode: "0644"
+  notify:
+    - Reload systemd
+    - Enable WebLogic service
+
+- name: Ensure WebLogic AdminServer is started
+  service:
+    name: weblogic-admin
+    state: started
+    enabled: true
+
+- name: Clean up installer files
+  file:
+    path: "{{ wls_installer_path }}/{{ wls_installer }}"
+    state: absent
+  when: wls_install_result is succeeded
