@@ -1,19 +1,65 @@
 ---
+# ============================================================
+# CHECK — Skip install if already done
+# ============================================================
 - name: Check if WebLogic is already installed
   stat:
     path: "{{ oracle_home }}/wlserver"
-  register: wls_installed
+  register: wls_home_check
 
-- name: Copy WebLogic installer to target
-  copy:
-    src: "files/{{ wls_installer }}"
-    dest: "{{ wls_installer_path }}/{{ wls_installer }}"
+# ============================================================
+# DOWNLOAD — Get installer from S3
+# ============================================================
+- name: Check if installer already on disk
+  stat:
+    path: "{{ wls_installer_path }}/{{ wls_installer }}"
+  register: installer_on_disk
+  when: not wls_home_check.stat.exists
+
+- name: Install AWS CLI if not present
+  dnf:
+    name: awscli
+    state: present
+  when:
+    - not wls_home_check.stat.exists
+    - not installer_on_disk.stat.exists | default(true)
+
+- name: Download WebLogic JAR from S3
+  shell: |
+    aws s3 cp s3://weblogic379063509598/fmw_14.1.2.0.0_wls.jar \
+      {{ wls_installer_path }}/{{ wls_installer }} \
+      --no-progress
+  register: s3_download
+  when:
+    - not wls_home_check.stat.exists
+    - not (installer_on_disk.stat.exists | default(false))
+  timeout: 600
+
+- name: Verify installer was downloaded
+  stat:
+    path: "{{ wls_installer_path }}/{{ wls_installer }}"
+  register: jar_check
+  when: not wls_home_check.stat.exists
+
+- name: Show installer file size
+  debug:
+    msg: "Installer size: {{ (jar_check.stat.size / 1024 / 1024) | round(1) }} MB"
+  when:
+    - not wls_home_check.stat.exists
+    - jar_check.stat.exists
+
+- name: Set correct ownership on installer
+  file:
+    path: "{{ wls_installer_path }}/{{ wls_installer }}"
     owner: "{{ oracle_user }}"
     group: "{{ oracle_group }}"
     mode: "0755"
-  when: not wls_installed.stat.exists
+  when: not wls_home_check.stat.exists
 
-- name: Generate oraInst.loc
+# ============================================================
+# CONFIGURE — oraInst.loc and response file
+# ============================================================
+- name: Deploy oraInst.loc
   template:
     src: oraInst.loc.j2
     dest: /etc/oraInst.loc
@@ -21,56 +67,119 @@
     group: "{{ oracle_group }}"
     mode: "0644"
 
-- name: Generate silent install response file
+- name: Deploy silent install response file
   template:
     src: wls_install.rsp.j2
     dest: "{{ wls_installer_path }}/wls_install.rsp"
     owner: "{{ oracle_user }}"
     group: "{{ oracle_group }}"
     mode: "0644"
-  when: not wls_installed.stat.exists
+  when: not wls_home_check.stat.exists
 
-- name: Run WebLogic silent installation
+# ============================================================
+# INSTALL — Run WebLogic silent installer
+# ============================================================
+- name: Run WebLogic silent installation (10-20 mins)
   become_user: "{{ oracle_user }}"
-  command: >
-    {{ java_home }}/bin/java -Xmx1024m
-    -jar {{ wls_installer_path }}/{{ wls_installer }}
-    -silent -responseFile {{ wls_installer_path }}/wls_install.rsp
-    -invPtrLoc /etc/oraInst.loc
+  shell: |
+    export JAVA_HOME=$(dirname $(dirname $(readlink -f $(which java))))
+    $JAVA_HOME/bin/java -Xmx1024m \
+      -jar {{ wls_installer_path }}/{{ wls_installer }} \
+      -silent \
+      -responseFile {{ wls_installer_path }}/wls_install.rsp \
+      -invPtrLoc /etc/oraInst.loc
   register: wls_install_result
-  when: not wls_installed.stat.exists
-  timeout: 1200
+  when: not wls_home_check.stat.exists
+  timeout: 1800
 
-- name: Display installation output
+- name: Show WebLogic install output
   debug:
     var: wls_install_result.stdout_lines
-  when: not wls_installed.stat.exists
+  when:
+    - not wls_home_check.stat.exists
+    - wls_install_result is defined
 
-- name: Generate WebLogic domain via WLST
+- name: Verify WebLogic wlserver directory exists
+  stat:
+    path: "{{ oracle_home }}/wlserver"
+  register: wls_verify
+
+- name: Fail if WebLogic install did not complete
+  fail:
+    msg: "WebLogic install failed — {{ oracle_home }}/wlserver not found"
+  when: not wls_verify.stat.exists
+
+# ============================================================
+# DOMAIN — Create via WLST
+# ============================================================
+- name: Deploy WLST domain creation script
+  template:
+    src: create_domain.py.j2
+    dest: "{{ wls_installer_path }}/create_domain.py"
+    owner: "{{ oracle_user }}"
+    group: "{{ oracle_group }}"
+    mode: "0755"
+
+- name: Check if domain already exists
+  stat:
+    path: "{{ wls_domain_home }}/{{ wls_domain_name }}"
+  register: domain_exists
+
+- name: Create WebLogic domain via WLST
   become_user: "{{ oracle_user }}"
-  script: files/create_domain.py
-  args:
-    executable: "{{ oracle_home }}/oracle_common/common/bin/wlst.sh"
+  shell: |
+    export JAVA_HOME=$(dirname $(dirname $(readlink -f $(which java))))
+    {{ oracle_home }}/oracle_common/common/bin/wlst.sh \
+      {{ wls_installer_path }}/create_domain.py
   register: domain_result
-  ignore_errors: true
+  when: not domain_exists.stat.exists
+  timeout: 300
 
-- name: Create systemd service for AdminServer
+- name: Show domain creation output
+  debug:
+    var: domain_result.stdout_lines
+  when:
+    - not domain_exists.stat.exists
+    - domain_result is defined
+
+# ============================================================
+# SERVICE — Register as systemd service
+# ============================================================
+- name: Deploy WebLogic systemd service
   template:
     src: weblogic-admin.service.j2
     dest: /etc/systemd/system/weblogic-admin.service
     mode: "0644"
-  notify:
-    - Reload systemd
-    - Enable WebLogic service
 
-- name: Ensure WebLogic AdminServer is started
-  service:
+- name: Reload systemd daemon
+  systemd:
+    daemon_reload: true
+
+- name: Start and enable WebLogic AdminServer
+  systemd:
     name: weblogic-admin
     state: started
     enabled: true
 
-- name: Clean up installer files
+- name: Wait for AdminServer to come up on port {{ wls_admin_port }}
+  wait_for:
+    port: "{{ wls_admin_port }}"
+    delay: 20
+    timeout: 300
+    msg: "AdminServer did not start within 5 minutes"
+
+- name: Clean up installer JAR to save disk space
   file:
     path: "{{ wls_installer_path }}/{{ wls_installer }}"
     state: absent
-  when: wls_install_result is succeeded
+  ignore_errors: true
+
+- name: Print Admin Console URL
+  debug:
+    msg:
+      - "======================================="
+      - " WebLogic Installation Complete!"
+      - "======================================="
+      - " Console : http://{{ ansible_host }}:{{ wls_admin_port }}/console"
+      - " User    : {{ wls_admin_user }}"
+      - "======================================="

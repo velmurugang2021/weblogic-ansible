@@ -3,6 +3,10 @@
 java_home: "/usr/lib/jvm/java-17-openjdk"
 jdk_package: "java-17-openjdk-devel"
 
+# WebLogic installer S3 location
+wls_s3_bucket: "weblogic379063509598 "
+wls_s3_key: "fmw_14.1.2.0.0_wls.jar"
+
 # WebLogic Installer
 wls_installer: "fmw_14.1.2.0.0_wls.jar"
 wls_installer_path: "/tmp/weblogic"
