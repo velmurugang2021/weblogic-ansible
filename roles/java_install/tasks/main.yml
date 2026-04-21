@@ -4,12 +4,10 @@
     path: "{{ java_home }}/bin/java"
   register: java_binary
 
-- name: Download JDK RPM from Oracle
-  get_url:
-    url: "{{ java_rpm_url }}"
-    dest: "/tmp/{{ jdk_package }}"
-    mode: "0644"
-    timeout: 120
+- name: Install Java 17
+  package:
+    name: java-17-openjdk
+    state: present
   when: not java_binary.stat.exists
 
 - name: Install JDK via RPM
