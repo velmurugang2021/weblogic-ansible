@@ -13,6 +13,7 @@ ExecStart={{ wls_domain_home }}/{{ wls_domain_name }}/bin/startWebLogic.sh
 ExecStop={{ wls_domain_home }}/{{ wls_domain_name }}/bin/stopWebLogic.sh
 Restart=on-failure
 RestartSec=30
+TimeoutStartSec=300
 
 [Install]
 WantedBy=multi-user.target

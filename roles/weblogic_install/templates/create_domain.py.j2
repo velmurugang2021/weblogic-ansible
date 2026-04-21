@@ -1,8 +1,7 @@
-# WLST script to create a basic WebLogic domain
 readTemplate('{{ oracle_home }}/wlserver/common/templates/wls/wls.jar')
 
 cd('Servers/AdminServer')
-set('ListenAddress','')
+set('ListenAddress', '')
 set('ListenPort', {{ wls_admin_port }})
 
 cd('/')
@@ -13,5 +12,5 @@ setOption('OverwriteDomain', 'true')
 writeDomain('{{ wls_domain_home }}/{{ wls_domain_name }}')
 closeTemplate()
 
-print('Domain created successfully at {{ wls_domain_home }}/{{ wls_domain_name }}')
+print('Domain created at {{ wls_domain_home }}/{{ wls_domain_name }}')
 exit()
